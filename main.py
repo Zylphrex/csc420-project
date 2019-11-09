@@ -89,7 +89,7 @@ class GradientPoint(object):
 
 
 class Edge(object):
-    def __init__(self, threshold=10 * np.pi / 180):
+    def __init__(self, threshold=15 * np.pi / 180):
         # this is the threshold to use to see if new
         # data fits the model of this current edge
         #
@@ -303,6 +303,11 @@ class Line(object):
         self.start_x = start_x
         self.stop_x = stop_x
 
+    def __len__(self):
+        dx = self.stop_x - self.start_x
+        dy = self.stop_y - self.start_y
+        return int(round(np.sqrt(dx * dx + dy * dy)))
+
     def compute(self, x):
         return int(self.slope * x + self.intercept)
 
@@ -327,6 +332,19 @@ class Line(object):
         slope = np.divide(SXY, SXX, where=SXX!=0)
         intercept = y_bar - slope * x_bar
         return Line(slope, intercept, edge.start.x, edge.stop.x)
+
+    @staticmethod
+    def from_points(x1, y1, x2, y2):
+        if x2 < x1:
+            x1, x2 = x2, x1
+            y1, y2 = y2, y1
+
+        denom = x2 - x1
+        if denom == 0:
+            denom = 1e-10
+        slope = (y2 - y1) / denom
+        intercept = y1 - slope * x1
+        return Line(slope, intercept, x1, x2)
 
 
 def detect_edges(edge_img, grad_dir, min_length=10):
@@ -419,8 +437,106 @@ def detect_lines(img, low=100, high=200):
     return edges
 
 
+def detect_quadrilateral(img, lines):
+    best_shape = None
+    best_score = 0
+
+    edge_groups = itertools.combinations(lines, 4)
+    for edges in edge_groups:
+
+        pairs = itertools.combinations(edges, 2)
+        pair1 = None
+        closest_angle = float('inf')
+        for e1, e2 in pairs:
+            a1 = np.arctan(e1.slope)
+            a2 = np.arctan(e2.slope)
+            angle = abs(a1 - a2)
+            if angle < closest_angle:
+                pair1 = [e1, e2]
+                closest_angle = angle
+
+        pair2 = []
+        for edge in edges:
+            if edge not in pair1:
+                pair2.append(edge)
+
+        out_of_bounds = False
+        points = []
+        for edge1 in pair1:
+            for edge2 in pair2:
+                x = (edge1.intercept - edge2.intercept) / (edge2.slope - edge1.slope)
+                y = edge1.slope * x + edge1.intercept
+                try:
+                    x, y = int(round(x)), int(round(y))
+                    out_of_bounds = x < 0 or x > img.shape[1] or y < 0 or y > img.shape[0]
+                except OverflowError:
+                    out_of_bounds = True
+
+                if out_of_bounds:
+                    break
+                points.append((x, y))
+
+            if out_of_bounds:
+                break
+
+        if out_of_bounds:
+            continue
+
+        score = 0
+
+        endpoints = [(0, 1), (2, 3), (0, 2), (1, 3)]
+        for edge, endpoint in zip(pair1 + pair2, endpoints):
+            p1 = points[endpoint[0]]
+            p2 = points[endpoint[1]]
+            line = Line.from_points(*p1, *p2)
+
+            length = l2_norm(line.start_x, line.start_y, line.stop_x, line.stop_y)
+            if line.start_x < edge.start_x:
+                min_x, min_y = line.start_x, line.start_y
+            else:
+                min_x, min_y = edge.start_x, edge.start_y
+            if line.stop_x > edge.stop_x:
+                max_x, max_y = line.stop_x, line.stop_y
+            else:
+                max_x, max_y = edge.stop_x, edge.stop_y
+            over_len = l2_norm(min_x, min_y, max_x, max_y) - length
+
+            coverage = length
+            overage = 0
+            if line.start_x < edge.start_x:
+                coverage -= l2_norm(line.start_x, line.start_y, edge.start_x, edge.start_y)
+            else:
+                overage += l2_norm(line.start_x, line.start_y, edge.start_x, edge.start_y)
+            if line.stop_x > edge.stop_x:
+                coverage -= l2_norm(line.stop_x, line.stop_y, edge.stop_x, edge.stop_y)
+            else:
+                overage += l2_norm(line.stop_x, line.stop_y, edge.stop_x, edge.stop_y)
+            coverage = max(0, coverage)
+            if over_len > 0:
+                score += (coverage / length) * (1 - 0.05 * overage / over_len)
+            else:
+                score += coverage / length
+
+        if score <= best_score:
+            continue
+
+        best_score = score
+        best_shape = points
+
+    # make sure to permute this in some order so we can construct the quadrilaterl
+    return best_shape
+
+
+def l2_norm(x1, y1, x2, y2):
+    dx = x2 - x1
+    dx2 = dx * dx
+    dy = y2 - y1
+    dy2 = dy * dy
+    return np.sqrt(dx2 + dy2)
+
+
 def visualize_edges(img, edges):
-    print(len(edges))
+    print('edges: {}'.format(len(edges)))
     def _visualize(img, edge, r=0, g=255, b=0):
         for p in edge:
             img[p.y, p.x, 0] = r
@@ -438,7 +554,7 @@ def visualize_edges(img, edges):
 
 
 def visualize_lines(img, lines):
-    print(len(lines))
+    print('lines: {}'.format(len(lines)))
     def _visualize(img, line, r=0, g=255, b=0):
         cv.line(img, (line.start_x, line.start_y), (line.stop_x, line.stop_y), (r, g, b), 5)
         return img
@@ -452,13 +568,30 @@ def visualize_lines(img, lines):
     return v
 
 
+def visualize_points(img, points):
+    print('points: {}'.format(len(points)))
+    def _visualize(img, x, y, r=0, g=255, b=0):
+        cv.circle(img, (x, y), 10, (r, g, b), 10)
+        return img
+
+    v = cv.cvtColor(np.copy(img), cv.COLOR_GRAY2RGB)
+    for x, y in points:
+        r = np.random.randint(255)
+        g = np.random.randint(255)
+        b = np.random.randint(255)
+        v = _visualize(v, x, y, r, g, b)
+    return v
+
 def main():
-    img = imread('images/test1.png', gray=True)
+    img = imread('images/test6.png', gray=True)
     small_img = resize(img, 640, 360) # reduce to 360p
     edges = detect_lines(small_img)
     io.imsave('results/test1.png', visualize_edges(small_img, edges))
     lines = [Line.from_edge(edge * 6) for edge in edges]
-    io.imsave('results/test2.png', visualize_lines(img, lines))
+    # io.imsave('results/test2.png', visualize_lines(img, lines))
+    quadrilateral = detect_quadrilateral(img, lines)
+    io.imsave('results/test3.png', visualize_points(img, quadrilateral))
+
 
 
 if __name__ == '__main__':
