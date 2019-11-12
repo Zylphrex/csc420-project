@@ -300,8 +300,8 @@ class Line(object):
     def __init__(self, slope, intercept, start_x, stop_x):
         self.slope = slope
         self.intercept = intercept
-        self.start_x = start_x
-        self.stop_x = stop_x
+        self.start_x = min(start_x, stop_x)
+        self.stop_x = max(start_x, stop_x)
 
     def __len__(self):
         dx = self.stop_x - self.start_x
@@ -428,18 +428,18 @@ def merge_edges(edges):
     return [edge for edge in edges if edge in edges_set]
 
 
-def detect_lines(img, low=100, high=200):
+def detect_lines(img, low=100, high=200, min_length=100):
     grad_x, grad_y, grad_dir = gradient_direction(img)
     canny_edges = cv.Canny(grad_x, grad_y, low, high)
     edges = detect_edges(canny_edges > 0, grad_dir)
     edges = merge_edges(edges)
-    edges = list(filter(lambda e: len(e) > 50, edges))
+    edges = list(filter(lambda e: len(e) > min_length, edges))
     return edges
 
 
 def detect_quadrilateral(img, lines):
     best_shape = None
-    best_score = 0
+    best_score = -float('inf')
 
     edge_groups = itertools.combinations(lines, 4)
     for edges in edge_groups:
@@ -491,31 +491,27 @@ def detect_quadrilateral(img, lines):
             line = Line.from_points(*p1, *p2)
 
             length = l2_norm(line.start_x, line.start_y, line.stop_x, line.stop_y)
-            if line.start_x < edge.start_x:
-                min_x, min_y = line.start_x, line.start_y
-            else:
-                min_x, min_y = edge.start_x, edge.start_y
-            if line.stop_x > edge.stop_x:
-                max_x, max_y = line.stop_x, line.stop_y
-            else:
-                max_x, max_y = edge.stop_x, edge.stop_y
-            over_len = l2_norm(min_x, min_y, max_x, max_y) - length
-
             coverage = length
             overage = 0
             if line.start_x < edge.start_x:
+                min_x, min_y = line.start_x, line.start_y
                 coverage -= l2_norm(line.start_x, line.start_y, edge.start_x, edge.start_y)
             else:
+                min_x, min_y = edge.start_x, edge.start_y
                 overage += l2_norm(line.start_x, line.start_y, edge.start_x, edge.start_y)
             if line.stop_x > edge.stop_x:
+                max_x, max_y = line.stop_x, line.stop_y
                 coverage -= l2_norm(line.stop_x, line.stop_y, edge.stop_x, edge.stop_y)
             else:
+                max_x, max_y = edge.stop_x, edge.stop_y
                 overage += l2_norm(line.stop_x, line.stop_y, edge.stop_x, edge.stop_y)
+            over_len = l2_norm(min_x, min_y, max_x, max_y) - length
             coverage = max(0, coverage)
             if over_len > 0:
                 score += (coverage / length) * (1 - 0.05 * overage / over_len)
             else:
                 score += coverage / length
+            score += coverage / length
 
         if score <= best_score:
             continue
@@ -571,7 +567,7 @@ def visualize_lines(img, lines):
 def visualize_points(img, points):
     print('points: {}'.format(len(points)))
     def _visualize(img, x, y, r=0, g=255, b=0):
-        cv.circle(img, (x, y), 10, (r, g, b), 10)
+        cv.circle(img, (x, y), 10, (r, g, b), 25, -1)
         return img
 
     v = cv.cvtColor(np.copy(img), cv.COLOR_GRAY2RGB)
@@ -583,12 +579,12 @@ def visualize_points(img, points):
     return v
 
 def main():
-    img = imread('images/test6.png', gray=True)
+    img = imread('images/test3.png', gray=True)
     small_img = resize(img, 640, 360) # reduce to 360p
     edges = detect_lines(small_img)
     io.imsave('results/test1.png', visualize_edges(small_img, edges))
-    lines = [Line.from_edge(edge * 6) for edge in edges]
-    # io.imsave('results/test2.png', visualize_lines(img, lines))
+    lines = [Line.from_edge(edge * 6) for edge in edges] # increase resolution to 4K
+    io.imsave('results/test2.png', visualize_lines(img, lines))
     quadrilateral = detect_quadrilateral(img, lines)
     io.imsave('results/test3.png', visualize_points(img, quadrilateral))
 
