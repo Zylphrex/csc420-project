@@ -4,10 +4,7 @@ import itertools
 import cv2 as cv
 import numpy as np
 from skimage import color
-from skimage import feature
 from skimage import io
-from skimage import transform
-from matplotlib import pyplot as plt
 
 
 def imread(fname, gray=False):
@@ -579,7 +576,7 @@ def visualize_points(img, points):
     return v
 
 def main():
-    img = imread('images/test3.png', gray=True)
+    img = imread('images/test6.png', gray=True)
     small_img = resize(img, 640, 360) # reduce to 360p
     edges = detect_lines(small_img)
     io.imsave('results/test1.png', visualize_edges(small_img, edges))
