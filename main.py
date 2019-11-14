@@ -6,6 +6,8 @@ import numpy as np
 from skimage import color
 from skimage import io
 
+np.seterr(all='raise')
+
 
 def imread(fname, gray=False):
     # assumes the image resolution is at least 4K
@@ -45,7 +47,7 @@ def gradient_direction(img, ksize=(5, 5), scale=1):
     sobel_y = cv.Sobel(img, cv.CV_16SC1, 0, 1 , ksize=5, scale=scale)
 
     # this calculates the angle between the vector and the (closest) x-axis
-    direction = np.arctan(np.abs(np.divide(sobel_y, sobel_x, where=sobel_x!=0)))
+    direction = np.arctan(np.nan_to_num(np.abs(np.divide(sobel_y, sobel_x, where=sobel_x!=0))))
 
     # Q1: nothing to be done here as it is already correct
 
@@ -191,7 +193,7 @@ class Edge(object):
                     print('edges touching')
                 return True
 
-            bad_d = 30
+            bad_d = 50
             if d1 > bad_d and d2 > bad_d and d3 > bad_d and d4 > bad_d:
                 if debug:
                     print('edges too far apart')
@@ -425,10 +427,13 @@ def merge_edges(edges):
     return [edge for edge in edges if edge in edges_set]
 
 
-def detect_lines(img, low=100, high=200, min_length=100):
+def detect_segments(img, low=100, high=200):
     grad_x, grad_y, grad_dir = gradient_direction(img)
     canny_edges = cv.Canny(grad_x, grad_y, low, high)
     edges = detect_edges(canny_edges > 0, grad_dir)
+    return edges
+
+def detect_lines(edges, min_length=60):
     edges = merge_edges(edges)
     edges = list(filter(lambda e: len(e) > min_length, edges))
     return edges
@@ -461,12 +466,12 @@ def detect_quadrilateral(img, lines):
         points = []
         for edge1 in pair1:
             for edge2 in pair2:
-                x = (edge1.intercept - edge2.intercept) / (edge2.slope - edge1.slope)
-                y = edge1.slope * x + edge1.intercept
                 try:
+                    x = (edge1.intercept - edge2.intercept) / (edge2.slope - edge1.slope)
+                    y = edge1.slope * x + edge1.intercept
                     x, y = int(round(x)), int(round(y))
                     out_of_bounds = x < 0 or x > img.shape[1] or y < 0 or y > img.shape[0]
-                except OverflowError:
+                except (OverflowError, FloatingPointError):
                     out_of_bounds = True
 
                 if out_of_bounds:
@@ -479,7 +484,35 @@ def detect_quadrilateral(img, lines):
         if out_of_bounds:
             continue
 
-        score = 0
+        if len(set(points)) < 4:
+            continue
+
+        diag = None
+        others = []
+        distance = 0
+        for p1, p2 in itertools.combinations(points, 2):
+            dx = abs(p1[0] - p2[0])
+            dy = abs(p1[1] - p2[1])
+            d = np.sqrt(dx * dx + dy * dy)
+            if d > distance:
+                distance = d
+                diag = [p1, p2]
+
+        for p in points:
+            if p not in diag:
+                others.append(p)
+
+        diagonal = Line.from_points(*diag[0], *diag[1])
+        a = diagonal.slope
+        b = 1
+        c = diagonal.intercept
+        d1 = np.abs(a * others[0][0] + b * others[0][1] + c) / np.sqrt(a * a + b * b)
+        a1 = distance * d1 / 2
+        d2 = np.abs(a * others[1][0] + b * others[1][1] + c) / np.sqrt(a * a + b * b)
+        a2 = distance * d2 / 2
+        area = a1 + a2
+
+        score = area / (img.shape[0] * img.shape[1])
 
         endpoints = [(0, 1), (2, 3), (0, 2), (1, 3)]
         for edge, endpoint in zip(pair1 + pair2, endpoints):
@@ -504,11 +537,13 @@ def detect_quadrilateral(img, lines):
                 overage += l2_norm(line.stop_x, line.stop_y, edge.stop_x, edge.stop_y)
             over_len = l2_norm(min_x, min_y, max_x, max_y) - length
             coverage = max(0, coverage)
+            multiplier = 1
             if over_len > 0:
-                score += (coverage / length) * (1 - 0.05 * overage / over_len)
+                multiplier -= 0.2 * overage / over_len
+            if length > 0:
+                score += ((2 * (coverage / length) * multiplier) ** 2) / 4
             else:
-                score += coverage / length
-            score += coverage / length
+                score -= 10  # heavy penalty for 0 length
 
         if score <= best_score:
             continue
@@ -576,12 +611,14 @@ def visualize_points(img, points):
     return v
 
 def main():
-    img = imread('images/test6.png', gray=True)
+    img = imread('images/test1.png', gray=True)
     small_img = resize(img, 640, 360) # reduce to 360p
-    edges = detect_lines(small_img)
-    io.imsave('results/test1.png', visualize_edges(small_img, edges))
+    segments = detect_segments(small_img)
+    # io.imsave('results/test0.png', visualize_edges(small_img, segments))
+    edges = detect_lines(segments)
+    # io.imsave('results/test1.png', visualize_edges(small_img, edges))
     lines = [Line.from_edge(edge * 6) for edge in edges] # increase resolution to 4K
-    io.imsave('results/test2.png', visualize_lines(img, lines))
+    # io.imsave('results/test2.png', visualize_lines(img, lines))
     quadrilateral = detect_quadrilateral(img, lines)
     io.imsave('results/test3.png', visualize_points(img, quadrilateral))
 
