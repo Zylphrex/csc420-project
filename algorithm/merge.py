@@ -34,35 +34,11 @@ def try_merge_point_groups(img, point_groups):
 
 
 def _point_groups_are_similar(group1, group2, bounds, threshold=geometry.deg_to_rad(15)):
-    if np.abs(group1.direction - group2.direction) > 2 * threshold:
-        return False
-
-    if group1.start.x < group2.start.x and group2.stop.x < group1.start.x:
-        return False
-
-    if group1.start.y < group2.start.y and group2.stop.y < group1.start.y:
-        return False
-
-    if group2.start.x < group1.start.x and group1.stop.x < group2.start.x:
-        return False
-
-    if group2.start.y < group1.start.y and group1.stop.y < group2.start.y:
-        return False
-
     distance1 = geometry.manhattan(group1.start, group2.start)
     distance2 = geometry.manhattan(group1.start, group2.stop)
     distance3 = geometry.manhattan(group1.stop, group2.start)
     distance4 = geometry.manhattan(group1.stop, group2.stop)
 
-    good_distance = 2
-    very_close = any([
-        distance1 < good_distance,
-        distance2 < good_distance,
-        distance3 < good_distance,
-        distance4 < good_distance,
-    ])
-    if very_close:
-        return True
 
     bad_distance = 50
     too_far = all([
@@ -74,24 +50,23 @@ def _point_groups_are_similar(group1, group2, bounds, threshold=geometry.deg_to_
     if too_far:
         return False
 
+
     xs1, ys1 = group1.xs, group1.ys
     m1, b1 = geometry.Line.compute_model(xs1, ys1)
     xs2, ys2 = group2.xs, group2.ys
     m2, b2 = geometry.Line.compute_model(xs2, ys2)
 
-    db = abs(b1 - b2)
-    if db >= 5:
-        return False
+    xs = [
+        min(group1.start.x, group2.start.x),
+        max(group1.stop.x, group2.stop.x),
+    ]
 
-    max_x = bounds[0]
-    c1 = m1 * max_x + b1
-    c2 = m2 * max_x + b2
-    dc = abs(c1 - c2)
-    if dc >= 5:
-        return False
-
-    if db >= 2 and dc >= 2 and abs(db - dc) < 0.5:
-        return False
+    for x in xs:
+        y1 = m1 * x + b1
+        y2 = m2 * x + b2
+        dy = abs(y1 - y2)
+        if dy >= 5:
+            return False
 
     m, b = geometry.Line.compute_model(xs1 + xs2, ys1 + ys2)
 

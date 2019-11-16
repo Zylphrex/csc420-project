@@ -43,7 +43,7 @@ class ImageGradient(image.Image):
         self.img = cv.Canny(self.x, self.y, low, high)
         return self.img > 0
 
-    def _sobel(self, x, y, ksize=5, scale=0.05):
+    def _sobel(self, x, y, ksize=5, scale=0.1):
         assert x == 1 or x == 0
         assert y == 1 or y == 0
 

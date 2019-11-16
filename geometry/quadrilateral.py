@@ -126,6 +126,10 @@ class Quadrilateral(object):
 
         return ordered_points
 
+    @property
+    def raw(self):
+        return [point.raw for point in self.ordered_points]
+
     def __repr__(self):
         return repr(self.points)
 
