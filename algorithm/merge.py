@@ -1,4 +1,4 @@
-from itertools import combinations, product
+from itertools import product
 
 import numpy as np
 
@@ -13,21 +13,24 @@ def try_merge_point_groups(img, point_groups):
     while True:
         done = True
 
-        pairs = combinations(point_groups, 2)
-        for group1, group2 in pairs:
-            if group1 not in point_groups or group2 not in point_groups:
+        for group1 in list(iter(point_groups)):
+            if group1 not in point_groups:
                 continue
+            for group2 in list(iter(point_groups)):
+                if group1 is group2 or group2 not in point_groups:
+                    continue
 
-            if not _point_groups_are_similar(group1, group2, bounds):
-                continue
+                if not _point_groups_are_similar(group1, group2, bounds):
+                    continue
 
-            point_groups.remove(group1)
-            point_groups.remove(group2)
+                point_groups.remove(group1)
+                point_groups.remove(group2)
 
-            group = _merge_two_point_groups(group1, group2)
-            point_groups.add(group)
+                group = _merge_two_point_groups(group1, group2)
+                point_groups.add(group)
+                group1 = group
 
-            done = False
+                done = False
 
         if done:
             break
@@ -96,21 +99,25 @@ def try_merge_words(words):
     while True:
         done = True
 
-        pairs = combinations(words, 2)
-        for w1, w2 in pairs:
-            if w1 not in words or w2 not in words:
+        for w1 in list(iter(words)):
+            if w1 not in words:
                 continue
 
-            if not _words_are_close(w1, w2):
-                continue
+            for w2 in list(iter(words)):
+                if w1 is w2 or w2 not in words:
+                    continue
 
-            words.remove(w1)
-            words.remove(w2)
+                if not _words_are_close(w1, w2):
+                    continue
 
-            word = _merge_two_words(w1, w2)
-            words.add(word)
+                words.remove(w1)
+                words.remove(w2)
 
-            done = False
+                word = _merge_two_words(w1, w2)
+                words.add(word)
+                w1 = word
+
+                done = False
 
         if done:
             break

@@ -10,7 +10,7 @@ from nn import extract_text
 
 
 def main():
-    img = ColorImage.imread('images/test9.png', resize=(3840,2160))
+    img = ColorImage.imread('images/test10.png', resize=(3840,2160))
     document_region = detect_document_region(img)
     region = img.draw_quadrilateral(document_region)
     region.imsave('results/region.png')

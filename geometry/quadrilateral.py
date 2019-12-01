@@ -16,6 +16,17 @@ class Quadrilateral(object):
         self.bounds = bounds
 
     def score(self):
+        dx = self.points[0].x - self.points[2].x
+        dy = self.points[0].y - self.points[2].y
+        d1 = np.sqrt(dx * dx + dy * dy)
+
+        dx = self.points[1].x - self.points[3].x
+        dy = self.points[1].y - self.points[3].y
+        d2 = np.sqrt(dx * dx + dy * dy)
+
+        if min(d1, d2) / max(d1, 2) < 0.2:
+            return 0
+
         score = np.sqrt(self.area() / (self.bounds[0] * self.bounds[1]))
         if score <= 0.2:
             return 0
@@ -28,6 +39,10 @@ class Quadrilateral(object):
             side = geometry.Line.from_points(group)
 
             length = len(side)
+
+            if length <= 25:
+                return 0
+
             coverage = length
             overage = 0
 
@@ -48,15 +63,18 @@ class Quadrilateral(object):
 
             multiplier = 1
             if over_length > 0:
+                if overage / length > 0.25:
+                    return 0
                 multiplier -= 0.2 * overage / over_length
+
             if length > 0:
                 coverage_score = max(0, coverage) / length
+                if coverage_score < 0.2:
+                    return 0
                 additional_score = multiplier * coverage_score
                 n = 2
                 scaled_score = ((n * additional_score) ** 2) / (n * n)
                 score += scaled_score
-            else:
-                score -= 10  # heavy penalty for 0 length
 
         return score
 
