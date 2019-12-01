@@ -1,0 +1,3 @@
+[submodule "crnn.pytorch"]
+	path = crnn.pytorch
+	url = git@github.com:meijieru/crnn.pytorch.git

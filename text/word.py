@@ -89,3 +89,9 @@ class Word(object):
     @property
     def max_y(self):
         return self.bottom_right.y
+
+    @property
+    def area(self):
+        w = self.max_x - self.min_x
+        h = self.max_y - self.min_y
+        return w * h

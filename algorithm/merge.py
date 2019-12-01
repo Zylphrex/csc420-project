@@ -115,7 +115,7 @@ def try_merge_words(words):
         if done:
             break
 
-    return list(words)
+    return [word for word in words if word.area >= 250]
 
 
 def _overlap(w1, w2):
@@ -128,7 +128,7 @@ def _overlap(w1, w2):
     return True
 
 
-def _words_are_close(w1, w2, threshold_x=5, threshold_y=15):
+def _words_are_close(w1, w2, threshold_x=7, threshold_y=15):
     if _overlap(w1, w2):
         return True
 

@@ -1,9 +1,12 @@
+import datetime
+
 import numpy as np
 
 from algorithm import detect_document_region
 from algorithm import extract_word_bounds
 from algorithm import warp_document
 from image import ColorImage
+from nn import extract_text
 
 
 def main():
@@ -15,10 +18,14 @@ def main():
     warped_region.imsave('results/document.png')
 
     words = extract_word_bounds(warped_region.copy())
+    text = []
     img = warped_region.copy()
     for i, word in enumerate(words):
         img = word.visualize_bounds(img.img)
-        word.crop(warped_region.copy().img).imsave('words/word{}.png'.format(i))
+        word_img = word.crop(warped_region.img)
+        word_img.imsave('words/word{}.png'.format(i))
+        text.append(extract_text(word_img.img))
+    print(' '.join(text))
     img.imsave('results/words.png')
 
 
