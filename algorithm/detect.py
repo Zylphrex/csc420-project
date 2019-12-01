@@ -3,6 +3,7 @@ from itertools import combinations
 import numpy as np
 
 import geometry
+import text
 
 
 def detect_point_groups(edge_img, gradient_direction):
@@ -71,3 +72,46 @@ def detect_quadrilateral(img, lines):
         best_fit = quadrilateral
 
     return best_fit
+
+
+def detect_words(pixels):
+    visited = np.zeros_like(pixels).astype(np.bool)
+    neighbours = {
+        ( 1,  0), ( 1,  1), ( 0,  1), (-1,  1),
+        (-1,  0), (-1, -1), ( 0, -1), ( 1, -1),
+    }
+
+    words = []
+
+    for y, x in zip(*np.where(pixels)):
+        if visited[y, x]:
+            continue
+
+        word = text.Word(pixels)
+        frontier = [geometry.Point(x, y)]
+
+        while frontier:
+            point = frontier.pop()
+            if not word.fits(point):
+                continue
+
+            visited[point.y, point.x] = True
+            word.add(point)
+
+            for dx, dy in neighbours:
+                new_x = point.x + dx
+                new_y = point.y + dy
+                try:
+                    if not pixels[new_y, new_x]:
+                        continue
+
+                    if visited[new_y, new_x]:
+                        continue
+
+                    frontier.append(geometry.Point(new_x, new_y))
+                except IndexError:
+                    continue
+
+        words.append(word)
+
+    return words

@@ -23,18 +23,23 @@ class Image(object):
     def imsave(self, file_name):
         cv.imwrite(file_name, self.img)
 
+    def copy(self):
+        return self.__class__(self.img.copy())
+
     @classmethod
-    def imread(cls, file_name):
+    def imread(cls, file_name, resize=None):
         img = cv.imread(file_name)
 
-        h, w = img.shape[:2]
-        if h > w:
-            target_h, target_w = 3840, 2160
-        else:
-            target_h, target_w = 2160, 3840
+        if resize:
+            h, w = img.shape[:2]
+            if h > w:
+                target_h, target_w = resize[0], resize[1]
+            else:
+                target_h, target_w = resize[1], resize[0]
 
-        # crop to 4K resolution
-        delta_h = (h - target_h) // 2
-        delta_w = (w - target_w) // 2
-        img = img[delta_h:target_h + delta_h, delta_w:target_w + delta_w]
+            # crop to 4K resolution
+            delta_h = (h - target_h) // 2
+            delta_w = (w - target_w) // 2
+            img = img[delta_h:target_h + delta_h, delta_w:target_w + delta_w]
+
         return cls(img)

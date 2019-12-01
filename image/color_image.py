@@ -5,6 +5,11 @@ import image
 
 
 class ColorImage(image.Image):
+    def __init__(self, img):
+        if len(img.shape) == 2:
+            img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+        super().__init__(img)
+
     def gray(self):
         gray = cv.cvtColor(self.img, cv.COLOR_BGR2GRAY)
         gray = np.round(gray * 255).astype(np.uint8)

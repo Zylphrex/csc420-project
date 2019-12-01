@@ -10,6 +10,9 @@ class Point(object):
     def raw(self):
         return (self.x, self.y)
 
+    def copy(self):
+        return Point(self.x, self.y)
+
     def __mul__(self, n):
         return Point(self.x * n, self.y * n)
 

@@ -1,8 +1,9 @@
-from itertools import combinations
+from itertools import combinations, product
 
 import numpy as np
 
 import geometry
+import text
 
 
 def try_merge_point_groups(img, point_groups):
@@ -10,11 +11,13 @@ def try_merge_point_groups(img, point_groups):
     point_groups = set(point_groups)
 
     while True:
-        done = False
+        done = True
 
         pairs = combinations(point_groups, 2)
-
         for group1, group2 in pairs:
+            if group1 not in point_groups or group2 not in point_groups:
+                continue
+
             if not _point_groups_are_similar(group1, group2, bounds):
                 continue
 
@@ -23,9 +26,8 @@ def try_merge_point_groups(img, point_groups):
 
             group = _merge_two_point_groups(group1, group2)
             point_groups.add(group)
-            break
-        else:
-            done = True
+
+            done = False
 
         if done:
             break
@@ -86,3 +88,68 @@ def _merge_two_point_groups(group1, group2):
     for point in group2:
         group.add(point, group2.direction)
     return group
+
+
+def try_merge_words(words):
+    words = set(words)
+
+    while True:
+        done = True
+
+        pairs = combinations(words, 2)
+        for w1, w2 in pairs:
+            if w1 not in words or w2 not in words:
+                continue
+
+            if not _words_are_close(w1, w2):
+                continue
+
+            words.remove(w1)
+            words.remove(w2)
+
+            word = _merge_two_words(w1, w2)
+            words.add(word)
+
+            done = False
+
+        if done:
+            break
+
+    return list(words)
+
+
+def _overlap(w1, w2):
+    if w1.min_x > w2.max_x or w2.min_x > w1.max_x:
+        return False
+
+    if w1.min_y > w2.max_y or w2.min_y > w1.max_y:
+        return False
+
+    return True
+
+
+def _words_are_close(w1, w2, threshold_x=5, threshold_y=15):
+    if _overlap(w1, w2):
+        return True
+
+    w1x = [w1.min_x, w1.max_x]
+    w1y = [w1.min_y, w1.max_y]
+    w2x = [w2.min_x, w2.max_x]
+    w2y = [w2.min_y, w2.max_y]
+    dx = float('inf')
+    dy = float('inf')
+
+    for x1, y1, x2, y2 in product(w1x, w1y, w2x, w2y):
+        dx = min(dx, abs(x1 - x2))
+        dy = min(dy, abs(y1 - y2))
+
+    return dx < threshold_x and dy < threshold_y
+
+
+def _merge_two_words(w1, w2):
+    word = text.Word(w1.img)
+    word.add(w1.top_left)
+    word.add(w1.bottom_right)
+    word.add(w2.top_left)
+    word.add(w2.bottom_right)
+    return word
