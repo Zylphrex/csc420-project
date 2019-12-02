@@ -52,31 +52,18 @@ def find_homography(src_points, dst_points):
 
     return h
 
+
 def warp_image(img, h, target):
     target_w = target[0]
     target_h = target[1]
 
-    h = cv.invert(h)[1]   
+    h_inv = np.linalg.inv(h)
+    coords = np.empty((3, target_h, target_w))
+    for x in range(target_w):
+        for y in range(target_h):
+            coords[:, y, x] = x, y, 1
 
-    h_11 = h[0][0]
-    h_12 = h[0][1]
-    h_13 = h[0][2]
-
-    h_21 = h[1][0]
-    h_22 = h[1][1]
-    h_23 = h[1][2]
-
-    h_31 = h[2][0]
-    h_32 = h[2][1]
-    h_33 = h[2][2]
-    
-    warped_image = np.zeros((target_h, target_w, 3), dtype=img.dtype)
-    for y in range(target_h):
-        for x in range(target_w):
-            m = np.array([x, y, 1])
-            q = h.dot(m)
-            x_old = int(round(q[0]/q[2]))
-            y_old = int(round(q[1]/q[2]))
-            warped_image[y][x] = img[y_old][x_old]
-
-    return warped_image
+    coords = h_inv.dot(coords.reshape((3, -1)))
+    coords = coords[:2, :] / coords[2, :]
+    coords = np.round(coords).astype(np.int)
+    return img[coords[1], coords[0]].reshape((target_h, target_w, 3))
