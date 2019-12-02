@@ -49,7 +49,7 @@ def warp_document(img, document_region, region_w=1080, region_l=1920, pad=10):
         [1, 1], [target_w, 1], [target_w, target_h], [1, target_h]
     ])
 
-    h, _ = cv.findHomography(src_points, dst_points)
-    document = cv.warpPerspective(img.img, h, (target_w, target_h))
+    h = algorithm.find_homography(src_points, dst_points)
+    document = algorithm.warp_image(img.img, h, (target_w, target_h))
 
     return image.ColorImage(document[pad:-pad, pad:-pad, :])
