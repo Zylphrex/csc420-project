@@ -9,6 +9,7 @@ def extract_word_bounds(img):
     canny = gradient.canny(100, 200)
     gradient.imsave('results/word_edges.png')
 
+    # 2.2: character detection
     words = algorithm.detect_words(canny)
 
     vis_characters = img.copy()
@@ -16,8 +17,11 @@ def extract_word_bounds(img):
         vis_characters = word.visualize_bounds(vis_characters.img)
     vis_characters.imsave('results/characters_bounds.png')
 
+    # 2.3:  word detection
     words = algorithm.try_merge_words(words)
 
+    # sort the words so we can output them in the order on
+    # the paper
     words = sorted(words, key=lambda w: (w.min_y, w.min_x))
 
     last_y = None

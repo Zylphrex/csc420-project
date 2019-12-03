@@ -13,6 +13,7 @@ def try_merge_point_groups(img, point_groups):
     while True:
         done = True
 
+        # iterate every pair of possible point groups
         for group1 in list(iter(point_groups)):
             if group1 not in point_groups:
                 continue
@@ -20,6 +21,8 @@ def try_merge_point_groups(img, point_groups):
                 if group1 is group2 or group2 not in point_groups:
                     continue
 
+                # measure similarity between two groups of points
+                # and merge them together if it passes the test
                 if not _point_groups_are_similar(group1, group2, bounds):
                     continue
 
@@ -39,12 +42,13 @@ def try_merge_point_groups(img, point_groups):
 
 
 def _point_groups_are_similar(group1, group2, bounds, threshold=geometry.deg_to_rad(15)):
+    # measure the nearest distance between the two point groups
     distance1 = geometry.manhattan(group1.start, group2.start)
     distance2 = geometry.manhattan(group1.start, group2.stop)
     distance3 = geometry.manhattan(group1.stop, group2.start)
     distance4 = geometry.manhattan(group1.stop, group2.stop)
 
-
+    # reject them if they are too far apart
     bad_distance = 50
     too_far = all([
         distance1 > bad_distance,
@@ -55,7 +59,7 @@ def _point_groups_are_similar(group1, group2, bounds, threshold=geometry.deg_to_
     if too_far:
         return False
 
-
+    # fit a line to each point group
     xs1, ys1 = group1.xs, group1.ys
     m1, b1 = geometry.Line.compute_model(xs1, ys1)
     xs2, ys2 = group2.xs, group2.ys
@@ -66,6 +70,7 @@ def _point_groups_are_similar(group1, group2, bounds, threshold=geometry.deg_to_
         max(group1.stop.x, group2.stop.x),
     ]
 
+    # reject them if the slopes and y-intercepts are too far apart
     for x in xs:
         y1 = m1 * x + b1
         y2 = m2 * x + b2
@@ -73,11 +78,13 @@ def _point_groups_are_similar(group1, group2, bounds, threshold=geometry.deg_to_
         if dy >= 5:
             return False
 
+    # fit a line to the merged point group
     m, b = geometry.Line.compute_model(xs1 + xs2, ys1 + ys2)
 
+    # reject if the fitted line is too different from either of the
+    # original point groups
     if m1 - threshold > m or m1 + threshold < m:
         return False
-
     if m2 - threshold > m or m2 + threshold < m:
         return False
 
@@ -99,6 +106,7 @@ def try_merge_words(words):
     while True:
         done = True
 
+        # iterate every pair of possible words
         for w1 in list(iter(words)):
             if w1 not in words:
                 continue
@@ -107,6 +115,8 @@ def try_merge_words(words):
                 if w1 is w2 or w2 not in words:
                     continue
 
+                # if the bounding boxes of the words are physically
+                # too far apart
                 if not _words_are_close(w1, w2):
                     continue
 
@@ -136,6 +146,7 @@ def _overlap(w1, w2):
 
 
 def _words_are_close(w1, w2, threshold_x=7, threshold_y=15):
+    # overlapping bounding boxes means we should merge
     if _overlap(w1, w2):
         return True
 
@@ -146,6 +157,7 @@ def _words_are_close(w1, w2, threshold_x=7, threshold_y=15):
     dx = float('inf')
     dy = float('inf')
 
+    # if they arent too far offset from each other
     for x1, y1, x2, y2 in product(w1x, w1y, w2x, w2y):
         dx = min(dx, abs(x1 - x2))
         dy = min(dy, abs(y1 - y2))

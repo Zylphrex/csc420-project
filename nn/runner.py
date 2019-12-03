@@ -29,11 +29,14 @@ def extract_text(image):
     image = Variable(image)
 
     model.eval()
+    # step 3.1 and 3.2: convolutional and recurrent network to
+    # extract the character sequence
     preds = model(image)
 
     _, preds = preds.max(2)
     preds = preds.transpose(1, 0).contiguous().view(-1)
 
+    # step 3.3: transcibe the sequence into words
     preds_size = Variable(torch.IntTensor([preds.size(0)]))
     sim_pred = converter.decode(preds.data, preds_size.data, raw=False)
     return sim_pred
