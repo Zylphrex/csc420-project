@@ -22,9 +22,7 @@ class ColorImage(image.Image):
             g = np.random.randint(255)
             b = np.random.randint(255)
             for point in point_group:
-                img[point.y, point.x, 0] = r
-                img[point.y, point.x, 1] = g
-                img[point.y, point.x, 2] = b
+                cv.circle(img, (point.x, point.y), 1, (r, g, b))
         return ColorImage(img)
 
     def draw_lines(self, lines):
@@ -33,7 +31,7 @@ class ColorImage(image.Image):
             r = np.random.randint(255)
             g = np.random.randint(255)
             b = np.random.randint(255)
-            cv.line(img, line.p1.raw, line.p2.raw, (r, g, b), 5)
+            cv.line(img, line.p1.raw, line.p2.raw, (r, g, b), 20)
         return ColorImage(img)
 
     def draw_quadrilateral(self, quadrilateral):
@@ -44,5 +42,5 @@ class ColorImage(image.Image):
         for i in range(4):
             start = quadrilateral.ordered_points[i]
             stop = quadrilateral.ordered_points[(i + 1) % 4]
-            cv.line(img, start.raw, stop.raw, (r, g, b), 5)
+            cv.line(img, start.raw, stop.raw, (r, g, b), 25)
         return ColorImage(img)

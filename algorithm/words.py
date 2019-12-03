@@ -11,6 +11,11 @@ def extract_word_bounds(img):
 
     words = algorithm.detect_words(canny)
 
+    vis_characters = img.copy()
+    for i, word in enumerate(words):
+        vis_characters = word.visualize_bounds(vis_characters.img)
+    vis_characters.imsave('results/characters_bounds.png')
+
     words = algorithm.try_merge_words(words)
 
     words = sorted(words, key=lambda w: (w.min_y, w.min_x))
@@ -24,5 +29,10 @@ def extract_word_bounds(img):
         map_y[word.min_y] = last_y
 
     words = sorted(words, key=lambda w: (map_y[w.min_y], w.min_x))
+
+    vis_words = img.copy()
+    for i, word in enumerate(words):
+        vis_words = word.visualize_bounds(vis_words.img)
+    vis_words.imsave('results/word_bounds.png')
 
     return words
