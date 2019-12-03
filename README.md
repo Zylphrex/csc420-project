@@ -4,7 +4,7 @@
 ## How to run
 
 ```
-git clone git@github.com:Zylphrex/csc420-project.git
+git clone --depth 1 git@github.com:Zylphrex/csc420-project.git
 cd csc420-project && git submodule init && git pull --recurse-submodules
 python main.py <image>
 ```
