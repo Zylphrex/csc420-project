@@ -6,6 +6,7 @@
 ```
 git clone --depth 1 git@github.com:Zylphrex/csc420-project.git
 cd csc420-project && git submodule init && git pull --recurse-submodules
+# download pre-trained model on dropbox from https://github.com/meijieru/crnn.pytorch and save it as crnn.pth in the root directory of this repository
 python main.py <image>
 ```
 
